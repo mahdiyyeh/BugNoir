@@ -1,1 +1,1 @@
-# LOCAL backend package
+# Local — Your Mutual Polyglot Friend (backend)

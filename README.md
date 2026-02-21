@@ -1,34 +1,36 @@
-# LOCAL — AI Personal Local Guide
+# Local — Your Mutual Polyglot Friend
 
-**HackEurope 48-Hour Hackathon | Team bugnoir**
+**HackEurope · Agentic AI track** — Voice-first conversation coach for travelers in foreign languages.
 
-Multi-agent AI that combines user personality memory with real-time local cultural knowledge (Paris) to produce contextualised travel responses — not word-for-word translation.
-
-## Stack
-
-- **Backend:** Python 3.11 + FastAPI  
-- **LLM:** Google Gemini (gemini-1.5-pro)  
-- **Vector DB:** Pinecone (user personality) — in-memory fallback if blocked  
-- **SQL DB:** PostgreSQL (conversation history) — optional  
-- **STT:** OpenAI Whisper API  
-- **TTS:** ElevenLabs API  
-- **Frontend:** React 18 + TypeScript + Tailwind CSS  
+- **Primary input:** Voice (earphones)  
+- **Primary output:** Sound (earphones)  
+- **Secondary:** Text in/out on screen  
+- **APIs:** Google Gemini
 
 ## Quick start
 
-### 1. Backend
+### 1. Backend (Python)
 
 ```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate   # or .venv\Scripts\activate on Windows
-pip install -r requirements.txt
-# Optional: copy .env.example to .env at repo root and add real keys
-# From repo root (so backend package resolves):
+cd /path/to/BugNoir
+python -m venv .venv   # if not already
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+pip install -r backend/requirements.txt
+```
+
+Create a `.env` file in the **project root** (same folder as this README):
+
+```
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+Run the API (from project root):
+
+```bash
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 2. Frontend
+### 2. Frontend (React)
 
 ```bash
 cd frontend
@@ -36,43 +38,34 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. The Vite proxy forwards `/interact` and `/health` to the backend.
+Open **http://localhost:5173**. The app proxies `/api` to the backend.
 
-### 3. Demo flow
+## Flow
 
-1. Enter a demo user ID (e.g. `demo-user-001`).  
-2. Allow mic; record a question (e.g. “How do I ask to split the bill?”).  
-3. Get three variants (formal, casual, joking) and optional TTS.
+1. **Where are you going?** — Paris, London, or Morocco (voice or tap).
+2. **Intro** — “Wow, what a location…” → **Okay**.
+3. **7 onboarding questions** — Personality, occasion, pronunciation, slang, profession, hobbies (buttons + voice/text where noted).
+4. **Thanks** — “What an interesting individual!…” → **I’m here** when you’ve arrived.
+5. **Welcome to [location]** → **Start Convo**.
+6. **STEP Z (conversation)**  
+   - Enter what the other person said (voice or text).  
+   - App shows: **translation in English**, then **suggested reply** (phonetic in RBT, local language in black, English in red).  
+   - User repeats the phrase or asks for a new suggestion; say “Au revoir” or tap **End Convo** to finish.
+7. **End** — **Start Convo** (again) or **New User** (full reset).
 
-## Main endpoint
+## Tech stack
 
-- **POST /interact**  
-  Body: `{ user_id, audio_base64, latitude, longitude, location_type }`  
-  Response: `{ variants: { formal, casual, joking }, recommended, audio_url?, langsmith_trace_url? }`
+- **Backend:** FastAPI, Pydantic, Google Gemini (translation, suggestions, phonetic).
+- **Frontend:** React 18, Vite, TypeScript, Web Speech API (voice in/out), CSS (Liquid Glass / RBT theme).
+- **Agents:** Personal Agent (user context), Local Agent (translation + phonetic), Communicator (orchestration).
 
-## MVP constraints
+## UI
 
-- Paris only (one JSON knowledge base).  
-- No real auth (`user_id` = hardcoded UUID for demo).  
-- No Docker, no live voice streaming.  
-- If Pinecone/Postgres/Whisper/ElevenLabs are blocked, the app falls back to mocks so it still runs.
+- White background, **Royal Blue (RBT)** for primary text and phonetic spelling.
+- **Black** for local language spelling, **red** for English translation.
+- Font: Times New Roman (with fallbacks).
+- Liquid Glass–style panels and chamfered “Okay” button.
 
-## File structure
+## License
 
-```
-backend/
-  main.py
-  agents/          # personality_parser, context_resolver, response_generator, memory_updater
-  services/        # gemini_client, pinecone_client, whisper_client, elevenlabs_client
-  data/paris_knowledge_base.json
-  models/schemas.py
-  db/postgres.py
-  requirements.txt
-frontend/
-  src/components/  # OnboardingForm, VoiceInput, ResponseCard, MemoryBadge
-  src/api/localApi.ts
-```
-
-## Environment
-
-Copy `.env.example` to `backend/.env` (or project root) and replace fake keys when Gemini/Pinecone/Whisper/ElevenLabs/LangSmith/Postgres are available.
+MIT.

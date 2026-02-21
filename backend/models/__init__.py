@@ -1,8 +1,17 @@
 from .schemas import (
-    InteractRequest,
-    InteractResponse,
-    PersonalityProfile,
-    ResolvedContext,
+    UserContext,
+    OnboardingAnswers,
+    LanguagePair,
+    ConversationTurn,
+    SuggestedResponse,
+    LocationOption,
 )
 
-__all__ = ["InteractRequest", "InteractResponse", "PersonalityProfile", "ResolvedContext"]
+__all__ = [
+    "UserContext",
+    "OnboardingAnswers",
+    "LanguagePair",
+    "ConversationTurn",
+    "SuggestedResponse",
+    "LocationOption",
+]

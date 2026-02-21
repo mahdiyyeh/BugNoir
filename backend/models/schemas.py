@@ -1,40 +1,62 @@
-"""
-Pydantic models for all request/response shapes.
-"""
-from pydantic import BaseModel, Field
+"""Pydantic models for Local Polyglot Friend API."""
+from enum import Enum
 from typing import Optional
 
-
-class InteractRequest(BaseModel):
-    """Request body for POST /interact."""
-    user_id: str = Field(..., description="User UUID (hardcoded for demo)")
-    audio_base64: str = Field(..., description="Base64-encoded audio from frontend")
-    latitude: float = Field(..., description="GPS latitude")
-    longitude: float = Field(..., description="GPS longitude")
-    location_type: str = Field(..., description="e.g. brasserie, museum, metro")
+from pydantic import BaseModel, Field
 
 
-class InteractResponse(BaseModel):
-    """Response from POST /interact."""
-    variants: dict = Field(
-        ...,
-        description="formal, casual, joking response variants"
-    )
-    recommended: str = Field(..., description="Which variant is recommended")
-    audio_url: Optional[str] = Field(None, description="TTS audio URL or base64")
-    langsmith_trace_url: Optional[str] = Field(None, description="LangSmith trace URL for observability")
+class LocationOption(str, Enum):
+    PARIS = "paris"
+    LONDON = "london"
+    MOROCCO = "morocco"
 
 
-class PersonalityProfile(BaseModel):
-    """User personality profile from Pinecone / fallback."""
-    user_id: str
-    summary: str = ""
-    preferences: list[str] = Field(default_factory=list)
-    raw: Optional[dict] = None
+class LanguagePair(str, Enum):
+    FR_EN = "fr_en"   # Paris
+    EN_FR = "en_fr"   # London (English primary)
+    AR_EN = "ar_en"   # Morocco (Arabic/French/English)
 
 
-class ResolvedContext(BaseModel):
-    """Local context from RAG over paris_knowledge_base."""
-    location_type: str
-    snippets: list[str] = Field(default_factory=list)
-    raw: Optional[dict] = None
+# Onboarding question 1: personality
+PERSONALITY_OPTIONS = ["Energetic", "Charismatic", "Sweet", "Cool", "Rude", "Smart"]
+# Q2: occasion
+OCCASION_OPTIONS = ["Holiday", "Social", "Professional", "Business", "Interview", "Love"]
+# Q3: pronunciation difficulty
+PRONUNCIATION_OPTIONS = ["Easy", "Medium", "Hard"]
+# Q4: slang level
+SLANG_OPTIONS = ["Down with the kids", "Friendly", "Moderate", "Minimal", "None"]
+
+
+class OnboardingAnswers(BaseModel):
+    """User answers from the 7 onboarding questions."""
+    location: LocationOption
+    personality: str = Field(..., description="E.g. Energetic, Charismatic, ...")
+    occasion: str = Field(..., description="E.g. Holiday, Business, ...")
+    pronunciation_difficulty: str = Field(..., description="Easy, Medium, Hard")
+    slang_level: str = Field(..., description="Slang preference")
+    profession: str = Field(..., description="Free text")
+    hobbies: str = Field(..., description="Free text")
+
+
+class UserContext(BaseModel):
+    """Full user context for the Personal Agent (from onboarding + session)."""
+    onboarding: OnboardingAnswers
+    native_language: str = "en"
+    target_language: str = "fr"
+    target_region: str = "Paris"
+
+
+class ConversationTurn(BaseModel):
+    """One turn: what the other person said (in local language) and optional user reply."""
+    other_person_said_local: str = Field(..., description="What the other person said in local language")
+    other_person_said_english: Optional[str] = Field(None, description="Translation to English")
+    suggested_response_english: Optional[str] = None
+    suggested_response_local: Optional[str] = None
+    phonetic_local: Optional[str] = Field(None, description="Phonetic spelling for user to pronounce")
+
+
+class SuggestedResponse(BaseModel):
+    """Suggested response with English, local language, and phonetic."""
+    english: str
+    local: str
+    phonetic: str = Field(..., description="Phonetic spelling for pronunciation")

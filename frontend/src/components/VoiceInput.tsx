@@ -1,77 +1,109 @@
-import React, { useState, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from 'react'
 
-export interface VoiceInputProps {
-  onRecordingComplete: (audioBase64: string) => void;
-  disabled?: boolean;
+function getSpeechRecognition(): SpeechRecognitionConstructor | undefined {
+  if (typeof window === 'undefined') return undefined
+  return (window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor }).SpeechRecognition
+    || (window as unknown as { webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition
 }
 
-/**
- * Record audio from mic and return base64 for POST /interact.
- * Uses MediaRecorder; fallback: no recording, demo uses mock.
- */
-export function VoiceInput({ onRecordingComplete, disabled }: VoiceInputProps) {
-  const [recording, setRecording] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+export function useVoiceInput() {
+  const [listening, setListening] = useState(false)
+  const [transcript, setTranscript] = useState('')
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
 
-  const startRecording = async () => {
-    setError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      chunksRef.current = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-      recorder.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64 = (reader.result as string).split(",")[1];
-          if (base64) onRecordingComplete(base64);
-        };
-        reader.readAsDataURL(blob);
-      };
-      recorder.start();
-      mediaRecorderRef.current = recorder;
-      setRecording(true);
-    } catch (e) {
-      setError("Microphone access denied or unavailable.");
+  const startListening = useCallback(() => {
+    const SR = getSpeechRecognition()
+    if (!SR) {
+      console.warn('Speech Recognition not supported')
+      return
     }
-  };
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop() } catch { /* ignore */ }
+    }
+    const recognition = new (SR as SpeechRecognitionConstructor)()
+    recognition.continuous = true
+    recognition.interimResults = true
+    recognition.lang = 'en-US'
+    recognition.onresult = (e: SpeechRecognitionEvent) => {
+      const last = e.results.length - 1
+      const text = e.results[last][0].transcript
+      setTranscript(text)
+    }
+    recognition.onerror = () => setListening(false)
+    recognition.onend = () => setListening(false)
+    recognitionRef.current = recognition
+    recognition.start()
+    setListening(true)
+  }, [])
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && recording) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current = null;
-      setRecording(false);
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop() } catch { /* ignore */ }
+      recognitionRef.current = null
     }
-  };
+    setListening(false)
+  }, [])
+
+  const resetTranscript = useCallback(() => setTranscript(''), [])
+
+  useEffect(() => () => {
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop() } catch { /* ignore */ }
+    }
+  }, [])
+
+  return { listening, transcript, startListening, stopListening, resetTranscript }
+}
+
+type Props = {
+  onResult: (text: string) => void
+  placeholder?: string
+}
+
+export function VoiceInput({ onResult, placeholder = 'Say something...' }: Props) {
+  const { listening, transcript, startListening, stopListening, resetTranscript } = useVoiceInput()
+  const submittedRef = useRef(false)
+
+  const handleSubmit = useCallback(() => {
+    const t = (transcript || '').trim()
+    if (t && !submittedRef.current) {
+      submittedRef.current = true
+      onResult(t)
+      resetTranscript()
+      stopListening()
+    }
+  }, [transcript, onResult, resetTranscript, stopListening])
+
+  useEffect(() => {
+    submittedRef.current = false
+  }, [listening])
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      {recording ? (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <button
           type="button"
-          onClick={stopRecording}
-          disabled={disabled}
-          className="rounded-full bg-red-600 px-6 py-3 font-medium text-white hover:bg-red-500 disabled:opacity-50"
+          className={listening ? 'option-btn selected' : 'option-btn'}
+          onClick={() => (listening ? stopListening() : startListening())}
         >
-          Stop recording
+          {listening ? '🛑 Stop' : '🎤 Voice'}
         </button>
-      ) : (
-        <button
-          type="button"
-          onClick={startRecording}
-          disabled={disabled}
-          className="rounded-full bg-amber-600 px-6 py-3 font-medium text-white hover:bg-amber-500 disabled:opacity-50"
-        >
-          Hold to ask (or tap to start)
-        </button>
+        {listening && (
+          <button type="button" className="btn-primary" onClick={handleSubmit}>
+            Submit
+          </button>
+        )}
+      </div>
+      {transcript && (
+        <p style={{ marginTop: 8, color: 'var(--black)', fontSize: '0.95rem' }}>
+          Heard: {transcript}
+        </p>
       )}
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {placeholder && !listening && (
+        <p style={{ marginTop: 6, color: 'var(--rbt)', opacity: 0.8, fontSize: '0.9rem' }}>
+          {placeholder}
+        </p>
+      )}
     </div>
-  );
+  )
 }

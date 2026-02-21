@@ -1,102 +1,171 @@
 """
-LOCAL — AI Personal Local Guide. Main FastAPI app and POST /interact.
+Local: Your Mutual Polyglot Friend — FastAPI backend.
+Run from repo root: uvicorn backend.main:app --reload
 """
 import os
-import base64
-import logging
+from contextlib import asynccontextmanager
+from typing import Optional
+
 from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+from backend.models.schemas import (
+    OnboardingAnswers,
+    UserContext,
+    LocationOption,
+    SuggestedResponse,
+)
+from backend.agents.communicator import CommunicatorAgent
+from backend.services.gemini_client import detect_end_phrase
 
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+# In-memory session store (use Redis/DB in production)
+sessions: dict[str, dict] = {}
 
-from backend.models.schemas import InteractRequest, InteractResponse
-from backend.agents import get_personality, resolve_context, generate_variants, update_memory
-from backend.services.whisper_client import transcribe
-from backend.services.elevenlabs_client import text_to_speech
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+def _location_to_languages(loc: LocationOption) -> tuple[str, str]:
+    if loc == LocationOption.PARIS:
+        return "en", "fr"
+    if loc == LocationOption.LONDON:
+        return "en", "fr"  # still French for visitors
+    if loc == LocationOption.MOROCCO:
+        return "en", "ar"
+    return "en", "fr"
+
+
+def _location_to_region(loc: LocationOption) -> str:
+    return {"paris": "Paris", "london": "London", "morocco": "Morocco"}.get(
+        loc.value, "Paris"
+    )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    sessions.clear()
+
 
 app = FastAPI(
-    title="LOCAL API",
-    description="Multi-agent AI local guide: personality + Paris context → response variants",
-    version="0.1.0",
+    title="Local — Polyglot Friend",
+    description="Agentic AI: voice-first conversation coach for travelers",
+    lifespan=lifespan,
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-def _get_langsmith_trace_url() -> str | None:
-    """If LangSmith is configured, return current trace URL (placeholder; wire real trace ID when LANGSMITH is live)."""
-    if os.getenv("LANGCHAIN_TRACING_V2", "").lower() == "true" and os.getenv("LANGSMITH_API_KEY"):
-        # TODO: integrate real LangSmith trace ID from langchain callbacks
-        return "https://smith.langchain.com/o/default/projects/local-hackathon"
-    return None
-
-
-@app.post("/interact", response_model=InteractResponse)
-async def interact(body: InteractRequest) -> InteractResponse:
+@app.post("/api/onboarding")
+def submit_onboarding(answers: OnboardingAnswers) -> dict:
     """
-    Main flow: STT → PersonalityParser → ContextResolver → ResponseGenerator → TTS (optional) → MemoryUpdater.
-    Returns variants (formal, casual, joking), recommended, optional audio_url, optional langsmith_trace_url.
+    Submit onboarding answers; returns session_id and user_context for client.
     """
-    try:
-        # 1. STT
-        transcript = transcribe(body.audio_base64)
-        if not transcript:
-            transcript = "How do I ask to split the bill?"
-
-        # 2. PersonalityParser
-        personality = get_personality(body.user_id)
-
-        # 3. ContextResolver
-        context = resolve_context(body.latitude, body.longitude, body.location_type)
-
-        # 4. ResponseGenerator
-        variants, recommended = generate_variants(transcript, personality, context)
-        recommended_text = variants.get(recommended, variants["casual"])
-
-        # 5. TTS (optional)
-        audio_b64 = text_to_speech(recommended_text)
-        audio_url = None
-        if audio_b64:
-            audio_url = f"data:audio/mpeg;base64,{audio_b64}"
-
-        # 6. MemoryUpdater
-        update_memory(
-            body.user_id,
-            personality,
-            transcript,
-            recommended,
-            recommended_text,
-            body.location_type,
-        )
-
-        trace_url = _get_langsmith_trace_url()
-        return InteractResponse(
-            variants=variants,
-            recommended=recommended,
-            audio_url=audio_url,
-            langsmith_trace_url=trace_url,
-        )
-    except Exception as e:
-        logger.exception("Interact failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+    native, target = _location_to_languages(answers.location)
+    region = _location_to_region(answers.location)
+    target_lang_name = {"fr": "French", "ar": "Arabic"}.get(target, "French")
+    user_context = UserContext(
+        onboarding=answers,
+        native_language=native,
+        target_language=target_lang_name,
+        target_region=region,
+    )
+    import uuid
+    session_id = str(uuid.uuid4())
+    sessions[session_id] = {
+        "user_context": user_context.model_dump(),
+        "conversation_history_english": [],
+        "arrived": False,
+    }
+    return {
+        "session_id": session_id,
+        "target_language": target_lang_name,
+        "target_region": region,
+    }
 
 
-@app.get("/health")
-async def health():
-    """Health check for deployment."""
-    return {"status": "ok", "service": "local"}
+class ArriveBody(BaseModel):
+    session_id: str
 
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+class ProcessTurnBody(BaseModel):
+    session_id: str
+    other_person_said_local: str
+
+
+class ConfirmBody(BaseModel):
+    session_id: str
+    user_said: str
+    suggested_local: str
+
+
+@app.post("/api/arrive")
+def mark_arrived(body: ArriveBody) -> dict:
+    """User clicked 'I'm here' at location."""
+    session_id = body.session_id
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    sessions[session_id]["arrived"] = True
+    region = sessions[session_id]["user_context"]["target_region"]
+    return {"message": f"Welcome to {region}", "region": region}
+
+
+@app.post("/api/conversation/process")
+def process_turn(body: ProcessTurnBody) -> dict:
+    """
+    STEP Z: Other person spoke in local language.
+    Returns translation (English) and suggested response (English + local + phonetic).
+    """
+    session_id = body.session_id
+    other_person_said_local = body.other_person_said_local
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    data = sessions[session_id]
+    ctx = UserContext(**data["user_context"])
+    comm = CommunicatorAgent(ctx)
+    history = data.get("conversation_history_english") or []
+    english_translation, suggested = comm.process_other_person_speech(
+        other_person_said_local, conversation_history_english=history
+    )
+    return {
+        "other_person_said_english": english_translation,
+        "suggested_response": suggested.model_dump(),
+    }
+
+
+@app.post("/api/conversation/confirm")
+def confirm_user_said(body: ConfirmBody) -> dict:
+    """
+    After user attempts to say the suggested phrase, optionally add to history
+    and check for end phrase (e.g. Au revoir).
+    """
+    session_id = body.session_id
+    user_said = body.user_said
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    data = sessions[session_id]
+    history = data.get("conversation_history_english") or []
+    # Append last exchange: other said X, user said Y (we store English side)
+    # For simplicity we store the suggested English as what user "said"
+    history.append(user_said)
+    data["conversation_history_english"] = history
+    ended = detect_end_phrase(user_said, data["user_context"].get("target_language", "French"))
+    return {"conversation_ended": ended}
+
+
+@app.get("/api/session/{session_id}")
+def get_session(session_id: str) -> dict:
+    if session_id not in sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return sessions[session_id]
+
+
+@app.get("/api/health")
+def health() -> dict:
+    return {"status": "ok", "gemini_configured": bool(os.getenv("GEMINI_API_KEY"))}

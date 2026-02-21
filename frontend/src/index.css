@@ -1,8 +1,137 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Local — Polyglot Friend
+   RBT = Royal Blue (#1e3a8a / Hack Europe style)
+   Liquid Glass iOS 26 aesthetic, elegant + bubbly
+*/
+:root {
+  --rbt: #1e3a8a;
+  --rbt-light: #3b82f6;
+  --black: #0f172a;
+  --red: #b91c1c;
+  --red-soft: #dc2626;
+  --white: #ffffff;
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.9);
+  --glass-shadow: 0 8px 32px rgba(30, 58, 138, 0.08);
+  --font-serif: "Times New Roman", "Libre Baskerville", Georgia, serif;
+}
+
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  font-family: var(--font-serif);
+  background: var(--white);
+  color: var(--rbt);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Liquid glass panels */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 24px;
+}
+
+/* RBT text (phonetic / primary UI) */
+.text-rbt {
+  color: var(--rbt);
+}
+
+/* French spelling */
+.text-french {
+  color: var(--black);
+}
+
+/* English translation */
+.text-english {
+  color: var(--red);
+}
+
+.btn-primary {
+  font-family: var(--font-serif);
+  background: var(--rbt);
+  color: var(--white);
+  border: none;
+  padding: 14px 28px;
+  border-radius: 16px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(30, 58, 138, 0.35);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Chamfered-rectangle style (slightly cut corners) */
+.btn-chamfer {
+  border-radius: 12px;
+  clip-path: polygon(
+    8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px
+  );
+}
+
+.btn-end-convo {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: 80px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  background: var(--red);
+  color: var(--white);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  z-index: 100;
+}
+
+.btn-end-convo:hover {
+  background: var(--red-soft);
+}
+
+/* Option buttons (personality, occasion, etc.) */
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.option-btn {
+  font-family: var(--font-serif);
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  color: var(--rbt);
+  border: 1px solid var(--glass-border);
+  padding: 14px 18px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.option-btn:hover {
+  background: rgba(30, 58, 138, 0.08);
+  border-color: var(--rbt-light);
+}
+
+.option-btn.selected {
+  background: var(--rbt);
+  color: var(--white);
+  border-color: var(--rbt);
 }
