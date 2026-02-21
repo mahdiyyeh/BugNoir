@@ -8,6 +8,7 @@ import {
 } from './api/client'
 import { VoiceInput, useVoiceInput } from './components/VoiceInput'
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis'
+import { targetLanguageToSpeechLocale } from './lib/speechLocale'
 
 type Step =
   | 'location'
@@ -37,6 +38,7 @@ export default function App() {
   const [step, setStep] = useState<Step>('location')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [region, setRegion] = useState<string>('')
+  const [targetLanguage, setTargetLanguage] = useState<string>('')
   const [answers, setAnswers] = useState<Partial<OnboardingAnswers>>({})
   const [error, setError] = useState<string | null>(null)
 
@@ -75,6 +77,7 @@ export default function App() {
       const res = await submitOnboarding(a)
       setSessionId(res.session_id)
       setRegion(res.target_region)
+      setTargetLanguage(res.target_language)
       setStep('thanks')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save.')
@@ -148,6 +151,7 @@ export default function App() {
     setStep('location')
     setSessionId(null)
     setRegion('')
+    setTargetLanguage('')
     setAnswers({})
     setSuggested(null)
     setOtherSaidEnglish('')
@@ -392,6 +396,7 @@ export default function App() {
           <VoiceInput
             onResult={handleOtherPersonInput}
             placeholder="Say or type what the other person said..."
+            lang={targetLanguage ? targetLanguageToSpeechLocale(targetLanguage) : undefined}
           />
           <input
             type="text"
@@ -441,6 +446,7 @@ export default function App() {
                   handleUserSaidConfirm(text)
                 }}
                 placeholder="Speak your response..."
+                lang={targetLanguage ? targetLanguageToSpeechLocale(targetLanguage) : undefined}
               />
             </div>
           )}

@@ -6,7 +6,10 @@ function getSpeechRecognition(): SpeechRecognitionConstructor | undefined {
     || (window as unknown as { webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition
 }
 
-export function useVoiceInput() {
+export type VoiceInputOptions = { lang?: string }
+
+export function useVoiceInput(options?: VoiceInputOptions) {
+  const lang = options?.lang ?? 'en-US'
   const [listening, setListening] = useState(false)
   const [transcript, setTranscript] = useState('')
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
@@ -23,7 +26,7 @@ export function useVoiceInput() {
     const recognition = new (SR as SpeechRecognitionConstructor)()
     recognition.continuous = true
     recognition.interimResults = true
-    recognition.lang = 'en-US'
+    recognition.lang = lang
     recognition.onresult = (e: SpeechRecognitionEvent) => {
       const last = e.results.length - 1
       const text = e.results[last][0].transcript
@@ -34,7 +37,7 @@ export function useVoiceInput() {
     recognitionRef.current = recognition
     recognition.start()
     setListening(true)
-  }, [])
+  }, [lang])
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
@@ -58,10 +61,12 @@ export function useVoiceInput() {
 type Props = {
   onResult: (text: string) => void
   placeholder?: string
+  /** BCP 47 language code for speech recognition (e.g. fr-FR for French). If not set, defaults to en-US. */
+  lang?: string
 }
 
-export function VoiceInput({ onResult, placeholder = 'Say something...' }: Props) {
-  const { listening, transcript, startListening, stopListening, resetTranscript } = useVoiceInput()
+export function VoiceInput({ onResult, placeholder = 'Say something...', lang }: Props) {
+  const { listening, transcript, startListening, stopListening, resetTranscript } = useVoiceInput(lang ? { lang } : undefined)
   const submittedRef = useRef(false)
 
   const handleSubmit = useCallback(() => {
@@ -79,7 +84,7 @@ export function VoiceInput({ onResult, placeholder = 'Say something...' }: Props
   }, [listening])
 
   return (
-    <div style={{ marginTop: 8 }}>
+    <div style={{ marginTop: 8 }} data-voice-lang={lang ?? undefined}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <button
           type="button"
