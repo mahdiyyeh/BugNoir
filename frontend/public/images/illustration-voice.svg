@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" aria-hidden="true">
+  <title>Voice and conversation</title>
+  <circle cx="40" cy="40" r="32" fill="rgba(26, 43, 195, 0.08)" stroke="rgba(26, 43, 195, 0.2)" stroke-width="1.2"/>
+  <path d="M40 28v24M32 36h16M28 32h24M32 44h16M28 48h24" stroke="#1A2BC3" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+  <circle cx="40" cy="40" r="6" fill="#1A2BC3" opacity="0.9"/>
+</svg>

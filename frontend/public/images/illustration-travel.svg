@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+  <title>Travel and language</title>
+  <circle cx="60" cy="60" r="48" fill="rgba(26, 43, 195, 0.06)" stroke="rgba(26, 43, 195, 0.2)" stroke-width="1.5"/>
+  <circle cx="60" cy="60" r="36" fill="none" stroke="rgba(26, 43, 195, 0.15)" stroke-width="1"/>
+  <path d="M60 24v72M24 60h72M38 38l44 44M82 38L38 82" stroke="rgba(26, 43, 195, 0.12)" stroke-width="1"/>
+  <path d="M60 44c-8.8 0-16 7.2-16 16s7.2 16 16 16 16-7.2 16-16-7.2-16-16-16z" fill="rgba(26, 43, 195, 0.25)"/>
+  <path d="M60 52l4 12 12 2-8 10 2 12-10-6-10 6 2-12-8-10 12-2 4-12z" fill="#1A2BC3"/>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 48" fill="none" aria-hidden="true">
+  <title>Local</title>
+  <rect width="48" height="48" rx="12" fill="url(#local-logo-grad)"/>
+  <path d="M14 14v20h6V20h4l6-6H14z" fill="white"/>
+  <circle cx="32" cy="18" r="3" fill="white" opacity="0.95"/>
+  <defs>
+    <linearGradient id="local-logo-grad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1A2BC3"/>
+      <stop offset="1" stop-color="#000298"/>
+    </linearGradient>
+  </defs>
+  <text x="56" y="32" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="700" fill="#0E0F52" letter-spacing="-0.02em">Local</text>
+</svg>

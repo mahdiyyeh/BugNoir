@@ -11,6 +11,7 @@ import {
 } from './api/client'
 import { VoiceInput, VoiceInputControlled, useVoiceInput } from './components/VoiceInput'
 import { GradientOrb } from './components/GradientOrb'
+import { PenguinTranslator } from './components/PenguinTranslator'
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis'
 import { targetLanguageToSpeechLocale } from './lib/speechLocale'
 
@@ -185,11 +186,11 @@ export default function App() {
   }, [])
 
   return (
-    <div className="app-wrap" style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
+    <div className={`app-wrap${step === 'location' ? ' start-page' : ''}`} style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
       <GradientOrb color="blue" size="large" className="orb-top-right" />
       <GradientOrb color="purple" size="medium" className="orb-bottom-left" />
 
-      <div style={{ position: 'relative', minHeight: '100vh', padding: 24, maxWidth: 440, margin: '0 auto', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <div className="app-container">
         {step === 'ended' && (
           <button type="button" className="btn-end-convo" style={{ display: 'none' }} aria-hidden />
         )}
@@ -199,34 +200,29 @@ export default function App() {
           </button>
         )}
 
-        {error && (
-          <p style={{ color: 'var(--red)', marginBottom: 16 }}>{error}</p>
-        )}
+{error && (
+        <p className="error-message">{error}</p>
+      )}
 
-        {/* ----- LOCATION ----- */}
+        {/* ----- LOCATION (start / landing) ----- */}
         {step === 'location' && (
-          <div className="glass" style={{ padding: 32 }}>
-            <div style={{ textAlign: 'center', marginBottom: 32 }}>
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: 16,
-                background: 'linear-gradient(135deg, #1A2BC3 0%, #000298 100%)', boxShadow: '0 12px 32px -4px rgba(26, 43, 195, 0.5)', marginBottom: 16,
-              }}>
-                <span style={{ fontSize: 32 }} aria-hidden>📍</span>
-              </div>
-              <h1 style={{ fontSize: '2.25rem', fontWeight: 700, color: 'var(--local-text-primary)', margin: '0 0 8px', letterSpacing: '-0.025em' }}>
-                Local
-              </h1>
-              <p style={{ color: 'var(--local-text-secondary)', fontSize: '1rem', margin: 0 }}>
-                Your AI language coach
-              </p>
+          <>
+            <div className="start-page-penguin-wrap">
+              <PenguinTranslator />
             </div>
-            <h2 style={{ color: 'var(--local-text-primary)', fontSize: '1.5rem', fontWeight: 600, marginBottom: 8, textAlign: 'center' }}>
-              Where are you going?
-            </h2>
-            <p style={{ color: 'var(--local-text-secondary)', fontSize: '0.875rem', marginBottom: 24, textAlign: 'center' }}>
-              Choose your destination (voice or tap):
-            </p>
-            <div className="options-grid" style={{ marginBottom: 24 }}>
+            <div className="glass card-padding">
+              <div className="start-hero">
+                <div className="logo-icon-wrap" aria-hidden>
+                  <img src="/logo-icon.svg" alt="" />
+                </div>
+                <h1 className="heading-hero">Local</h1>
+                <p className="subtitle">Your AI language coach</p>
+              </div>
+            <div className="start-cta-section">
+              <h2 className="heading-section" style={{ textAlign: 'center' }}>Where are you going?</h2>
+              <p className="subtitle" style={{ textAlign: 'center' }}>Choose your destination (voice or tap)</p>
+            </div>
+            <div className="options-grid" style={{ marginBottom: 'var(--space-6)' }}>
               {LOCATIONS.map((loc) => (
                 <button
                   key={loc.id}
@@ -248,11 +244,12 @@ export default function App() {
               placeholder="Or say: Paris, London, Morocco"
             />
           </div>
+          </>
         )}
 
       {/* ----- INTRO ----- */}
         {step === 'intro' && (
-          <div className="glass" style={{ padding: 32 }}>
+          <div className="glass card-padding">
             <p style={{ color: 'var(--local-text-primary)', fontSize: '1.1rem', marginBottom: 24, lineHeight: 1.6 }}>
               Wow, what a location! Now let me get to know a bit more about you.
             </p>
@@ -264,7 +261,7 @@ export default function App() {
 
         {/* ----- PERSONALITY ----- */}
         {step === 'personality' && (
-          <div className="glass" style={{ padding: 32 }}>
+          <div className="glass card-padding">
             <h2 style={{ color: 'var(--local-text-primary)', marginBottom: 8, textAlign: 'center', fontSize: '1.5rem', fontWeight: 600 }}>
               How do you want to come across?
             </h2>
@@ -288,7 +285,7 @@ export default function App() {
 
         {/* ----- OCCASION ----- */}
         {step === 'occasion' && (
-          <div className="glass" style={{ padding: 32 }}>
+          <div className="glass card-padding">
             <h2 style={{ color: 'var(--local-text-primary)', marginBottom: 8, textAlign: 'center', fontSize: '1.5rem', fontWeight: 600 }}>
               What is the occasion of the trip?
             </h2>
@@ -312,7 +309,7 @@ export default function App() {
 
         {/* ----- PRONUNCIATION ----- */}
         {step === 'pronunciation' && (
-          <div className="glass" style={{ padding: 32 }}>
+          <div className="glass card-padding">
             <h2 style={{ color: 'var(--local-text-primary)', marginBottom: 16, textAlign: 'center', fontSize: '1.125rem', fontWeight: 600 }}>
               How easy do you find it to pronounce {answers.location === 'morocco' ? 'Arabic' : 'French'} words?
             </h2>
@@ -333,7 +330,7 @@ export default function App() {
 
         {/* ----- SLANG ----- */}
         {step === 'slang' && (
-          <div className="glass" style={{ padding: 32 }}>
+          <div className="glass card-padding">
             <h2 style={{ color: 'var(--local-text-primary)', marginBottom: 16, textAlign: 'center', fontSize: '1.125rem', fontWeight: 600 }}>
               What level of slang do you want to use?
             </h2>
@@ -354,7 +351,7 @@ export default function App() {
 
         {/* ----- PROFESSION ----- */}
         {step === 'profession' && (
-          <div className="glass" style={{ padding: 32 }}>
+          <div className="glass card-padding">
             <h2 style={{ color: 'var(--local-text-primary)', marginBottom: 16, fontSize: '1.25rem', fontWeight: 600 }}>
               What is your profession?
             </h2>
@@ -382,7 +379,7 @@ export default function App() {
 
         {/* ----- HOBBIES ----- */}
         {step === 'hobbies' && (
-          <div className="glass" style={{ padding: 32 }}>
+          <div className="glass card-padding">
             <h2 style={{ color: 'var(--local-text-primary)', marginBottom: 16, fontSize: '1.25rem', fontWeight: 600 }}>
               What are your hobbies?
             </h2>
@@ -410,7 +407,7 @@ export default function App() {
 
         {/* ----- THANKS ----- */}
         {step === 'thanks' && (
-          <div className="glass" style={{ padding: 32 }}>
+          <div className="glass card-padding">
             <p style={{ color: 'var(--local-text-primary)', fontSize: '1.05rem', lineHeight: 1.6 }}>
               What an interesting individual! Thanks for all that info — I now have a better
               understanding of who you are and look forward to getting to know you more through
@@ -425,7 +422,7 @@ export default function App() {
 
         {/* ----- WELCOME ----- */}
         {step === 'welcome' && (
-          <div className="glass" style={{ padding: 32 }}>
+          <div className="glass card-padding">
             <h1 style={{ color: 'var(--local-text-primary)', marginBottom: 24, fontSize: '1.5rem', fontWeight: 700 }}>
               Welcome to {region}
             </h1>
@@ -518,7 +515,7 @@ export default function App() {
 
         {/* ----- ENDED ----- */}
         {step === 'ended' && (
-          <div className="glass" style={{ padding: 32 }}>
+          <div className="glass card-padding">
             <h2 style={{ color: 'var(--local-text-primary)', marginBottom: 24, fontSize: '1.25rem', fontWeight: 600 }}>
               Conversation ended
             </h2>
