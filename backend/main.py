@@ -2,16 +2,19 @@
 Local: Your Mutual Polyglot Friend — FastAPI backend.
 Run from repo root: uvicorn backend.main:app --reload
 """
+import asyncio
+import json
 import os
 import uuid
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Any, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from backend.config import get_settings
 from backend.models.schemas import (
     OnboardingAnswers,
     UserContext,
@@ -20,6 +23,7 @@ from backend.models.schemas import (
 from backend.agents.communicator import CommunicatorAgent
 from backend.services.gemini_client import detect_end_phrase
 from backend.services.value_tracker import ValueTracker
+from backend.services.live_session import run_live_session
 
 value_tracker = ValueTracker()
 
@@ -176,6 +180,109 @@ def get_dashboard() -> dict:
     return value_tracker.get_dashboard()
 
 
+@app.get("/api/value/summary")
+def value_summary() -> dict[str, Any]:
+    """Paid.ai billing summary: total events, total_cost_eur, average_complexity."""
+    return value_tracker.get_summary()
+
+
+@app.get("/api/value/events")
+def value_events(limit: int = 50) -> dict[str, Any]:
+    """Paid.ai recent billable events (newest first)."""
+    return {"events": value_tracker.get_recent_events(limit=limit)}
+
+
+@app.websocket("/ws/translate")
+async def websocket_translate(websocket: WebSocket) -> None:
+    """
+    Step A: Expect initial JSON with user context (destination, occasion, slang_level, etc.).
+    Step B: Open Gemini Live session with system prompt from context.
+    Step C: Concurrent loops: (1) receive PCM from client -> Gemini, (2) receive from Gemini -> client (audio binary, tool calls JSON).
+    ValueTracker logs an event on each completed turn.
+    """
+    await websocket.accept()
+    context: Optional[dict[str, Any]] = None
+    audio_in: asyncio.Queue[bytes] = asyncio.Queue()
+    audio_out: asyncio.Queue[bytes] = asyncio.Queue()
+    tool_out: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+    live_tasks: list[asyncio.Task] = []
+
+    def on_turn(turn_index: int, payload: dict[str, Any]) -> None:
+        value_tracker.record_step_z(
+            conversation_turn_index=turn_index,
+            english_translation=payload.get("english_translation", ""),
+            suggested_local=payload.get("local_spelling", ""),
+            phonetic_spelling=payload.get("phonetic_spelling", ""),
+            suggested_english=payload.get("english_translation", ""),
+            slang_level=context.get("slang_level") if context else None,
+        )
+
+    async def receive_from_client() -> None:
+        nonlocal context
+        try:
+            while True:
+                msg = await websocket.receive()
+                if "text" in msg and msg["text"]:
+                    data = json.loads(msg["text"])
+                    if context is None:
+                        context = data
+                        t = asyncio.create_task(
+                            run_live_session(
+                                context,
+                                audio_in,
+                                audio_out,
+                                tool_out,
+                                turn_callback=on_turn,
+                            )
+                        )
+                        live_tasks.append(t)
+                    continue
+                if "bytes" in msg and msg["bytes"]:
+                    await audio_in.put(msg["bytes"])
+        except WebSocketDisconnect:
+            pass
+        except Exception:
+            pass
+        finally:
+            await audio_in.put(None)
+
+    async def send_tools_to_client() -> None:
+        try:
+            while True:
+                tool_payload = await tool_out.get()
+                await websocket.send_text(json.dumps(tool_payload))
+        except (WebSocketDisconnect, Exception):
+            pass
+
+    async def send_audio_to_client() -> None:
+        try:
+            while True:
+                audio_chunk = await audio_out.get()
+                await websocket.send_bytes(audio_chunk)
+        except (WebSocketDisconnect, Exception):
+            pass
+
+    try:
+        await asyncio.gather(
+            receive_from_client(),
+            send_tools_to_client(),
+            send_audio_to_client(),
+        )
+    finally:
+        for t in live_tasks:
+            if not t.done():
+                t.cancel()
+                try:
+                    await t
+                except asyncio.CancelledError:
+                    pass
+
+
 @app.get("/api/health")
 def health() -> dict:
-    return {"status": "ok", "gemini_configured": bool(os.getenv("GEMINI_API_KEY"))}
+    try:
+        s = get_settings()
+        gemini_ok = bool(s.gemini_api_key or s.live_translation_api_key)
+    except Exception:
+        gemini_ok = bool(os.getenv("GEMINI_API_KEY") or os.getenv("LIVE_TRANSLATION_API_KEY"))
+    return {"status": "ok", "gemini_configured": gemini_ok}

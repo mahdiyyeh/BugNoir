@@ -98,3 +98,29 @@ export async function getDashboard(): Promise<{
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+
+/** Paid.ai value summary (GET /api/value/summary) */
+export async function getValueSummary(): Promise<{
+  total_events: number;
+  total_cost_eur: number;
+  average_complexity: number;
+}> {
+  const res = await fetch(`${API_BASE}/value/summary`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+/** Paid.ai recent events (GET /api/value/events) */
+export async function getValueEvents(limit = 10): Promise<{
+  events: Array<{
+    event_type?: string;
+    complexity_score: number;
+    estimated_cost_eur?: number;
+    estimated_value_eur?: number;
+    timestamp: string;
+  }>;
+}> {
+  const res = await fetch(`${API_BASE}/value/events?limit=${limit}`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}

@@ -6,6 +6,8 @@ import {
   processTurn,
   confirmUserSaid,
   getDashboard,
+  getValueSummary,
+  getValueEvents,
 } from './api/client'
 import { VoiceInput, VoiceInputControlled, useVoiceInput } from './components/VoiceInput'
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis'
@@ -56,8 +58,11 @@ export default function App() {
     average_complexity: number;
     log: Array<{ complexity_score: number; interaction_type: string; estimated_value_eur: number; timestamp: string }>;
   } | null>(null)
+  // Paid.ai billing (new value APIs)
+  const [valueSummary, setValueSummary] = useState<{ total_events: number; total_cost_eur: number; average_complexity: number } | null>(null)
+  const [valueEvents, setValueEvents] = useState<Array<{ complexity_score: number; estimated_cost_eur?: number; timestamp: string }>>([])
 
-  const { speak, speaking } = useSpeechSynthesis()
+  const { speak, speakSequence, speaking } = useSpeechSynthesis()
   const conversationVoice = useVoiceInput(speechLocale ? { lang: speechLocale } : undefined)
   const processingRef = useRef(false)
 
@@ -120,15 +125,18 @@ export default function App() {
         setOtherSaidEnglish(res.other_person_said_english)
         setSuggested(res.suggested_response)
         setWaitingForUserToSpeak(true)
-        speak(res.other_person_said_english, 'en-US')
-        setTimeout(() => speak(res.suggested_response.local, speechLocale || 'en-US'), 800)
+        speakSequence([
+          { text: res.other_person_said_english, lang: 'en-US' },
+          { text: 'I would say this.', lang: 'en-US' },
+          { text: res.suggested_response.local, lang: speechLocale || 'en-US' },
+        ])
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Processing failed.')
       } finally {
         processingRef.current = false
       }
     },
-    [sessionId, speak, speechLocale]
+    [sessionId, speakSequence, speechLocale]
   )
 
   const handleUserSaidConfirm = useCallback(
@@ -504,6 +512,28 @@ export default function App() {
               <p style={{ color: 'var(--rbt)', marginBottom: 8 }}>Total Interactions: <span style={{ color: 'var(--rbt)' }}>{dashboard.total_interactions}</span></p>
               <p style={{ color: 'var(--rbt)', marginBottom: 8 }}>Total Value: <span style={{ color: 'var(--red)' }}>€{dashboard.total_value_eur.toFixed(2)}</span></p>
               <p style={{ color: 'var(--rbt)' }}>Average Complexity Score: <span style={{ color: 'var(--rbt)' }}>{dashboard.average_complexity}</span></p>
+            </div>
+          )}
+          <button type="button" className="option-btn" style={{ width: '100%', marginBottom: 16 }} onClick={async () => {
+            try {
+              const [summary, { events }] = await Promise.all([getValueSummary(), getValueEvents(5)])
+              setValueSummary(summary)
+              setValueEvents(events)
+            } catch {
+              setValueSummary(null)
+              setValueEvents([])
+            }
+          }}>
+            Billing summary (Paid.ai APIs)
+          </button>
+          {valueSummary !== null && (
+            <div className="glass" style={{ padding: 20, marginTop: 16 }}>
+              <p style={{ color: 'var(--rbt)', marginBottom: 8 }}>Total events: <span style={{ color: 'var(--rbt)' }}>{valueSummary.total_events}</span></p>
+              <p style={{ color: 'var(--rbt)', marginBottom: 8 }}>Total cost (€): <span style={{ color: 'var(--red)' }}>€{valueSummary.total_cost_eur.toFixed(2)}</span></p>
+              <p style={{ color: 'var(--rbt)', marginBottom: 8 }}>Average complexity: <span style={{ color: 'var(--rbt)' }}>{valueSummary.average_complexity}</span></p>
+              {valueEvents.length > 0 && (
+                <p style={{ color: 'var(--rbt)', marginTop: 12, fontSize: '0.9rem' }}>Recent: {valueEvents.length} event(s) — complexity {valueEvents.map(e => e.complexity_score).join(', ')}</p>
+              )}
             </div>
           )}
           <button type="button" className="option-btn" style={{ width: '100%' }} onClick={startNewUser}>
