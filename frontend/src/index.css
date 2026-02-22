@@ -1,17 +1,30 @@
 /* Local — Polyglot Friend
-   RBT = Royal Blue (#1e3a8a / Hack Europe style)
-   Liquid Glass iOS 26 aesthetic, elegant + bubbly
+   Temp UI ideas: premium blue gradient, glass cards, Inter font
 */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
-  --rbt: #1e3a8a;
+  /* Legacy / compatibility */
+  --rbt: #1A2BC3;
   --rbt-light: #3b82f6;
   --black: #0f172a;
   --red: #b91c1c;
   --red-soft: #dc2626;
   --white: #ffffff;
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.9);
-  --glass-shadow: 0 8px 32px rgba(30, 58, 138, 0.08);
+
+  /* Temp UI premium palette */
+  --local-primary: #1A2BC3;
+  --local-primary-dark: #000298;
+  --local-text-primary: #0E0F52;
+  --local-text-secondary: #6B7280;
+  --local-text-muted: #9CA3AF;
+  --local-bg-gradient: linear-gradient(135deg, #E8F1FF 0%, #D6E8FF 50%, #C5DEFF 100%);
+
+  /* Glass (PremiumCard-style) */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-shadow: 0 8px 32px 0 rgba(26, 43, 195, 0.1), 0 2px 8px 0 rgba(0, 2, 152, 0.05), inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
+  --font-sans: 'Inter', system-ui, sans-serif;
   --font-serif: "Times New Roman", "Libre Baskerville", Georgia, serif;
 }
 
@@ -22,44 +35,46 @@
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: var(--font-serif);
-  background: var(--white);
-  color: var(--rbt);
+  font-family: var(--font-sans);
+  background: var(--local-bg-gradient);
+  color: var(--local-text-primary);
   -webkit-font-smoothing: antialiased;
 }
 
 #root {
   min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
 }
 
-/* Liquid glass panels */
+/* Premium glass panels (temp UI PremiumCard look) */
 .glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
   border-radius: 24px;
 }
 
-/* RBT text (phonetic / primary UI) */
+/* RBT / primary text */
 .text-rbt {
-  color: var(--rbt);
+  color: var(--local-primary);
 }
 
-/* French spelling */
 .text-french {
-  color: var(--black);
+  color: var(--local-text-primary);
 }
 
-/* English translation */
 .text-english {
-  color: var(--red);
+  color: var(--local-text-secondary);
 }
 
+/* Primary button (temp UI PremiumButton primary) */
 .btn-primary {
-  font-family: var(--font-serif);
-  background: var(--rbt);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  background: linear-gradient(135deg, #1A2BC3 0%, #000298 100%);
   color: var(--white);
   border: none;
   padding: 14px 28px;
@@ -67,46 +82,57 @@ body {
   font-size: 1rem;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 8px 24px -4px rgba(26, 43, 195, 0.4), 0 4px 12px -2px rgba(0, 2, 152, 0.3), inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
 }
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(30, 58, 138, 0.35);
+  box-shadow: 0 12px 32px -4px rgba(26, 43, 195, 0.5), 0 4px 12px -2px rgba(0, 2, 152, 0.3);
 }
 
 .btn-primary:active {
   transform: translateY(0);
 }
 
-/* Chamfered-rectangle style (slightly cut corners) */
 .btn-chamfer {
-  border-radius: 12px;
-  clip-path: polygon(
-    8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px
-  );
+  border-radius: 16px;
 }
 
+/* End conversation button (temp UI: glass pill with X style) */
 .btn-end-convo {
   position: fixed;
-  top: 12px;
-  right: 12px;
-  width: 80px;
-  padding: 8px 12px;
-  font-size: 0.8rem;
-  background: var(--red);
-  color: var(--white);
-  border: none;
+  top: 24px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  color: var(--local-text-secondary);
+  border: 1px solid var(--glass-border);
   border-radius: 12px;
   cursor: pointer;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   z-index: 100;
+  transition: color 0.2s, border-color 0.2s;
 }
 
 .btn-end-convo:hover {
-  background: var(--red-soft);
+  color: var(--red);
 }
 
-/* Option buttons (personality, occasion, etc.) */
+.btn-end-convo::before {
+  content: '✕';
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+/* Option buttons (temp UI: glass unselected, gradient selected) */
 .options-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -114,24 +140,93 @@ body {
 }
 
 .option-btn {
-  font-family: var(--font-serif);
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  color: var(--rbt);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  color: var(--local-text-primary);
   border: 1px solid var(--glass-border);
   padding: 14px 18px;
   border-radius: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 4px 16px 0 rgba(26, 43, 195, 0.08), inset 0 1px 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .option-btn:hover {
-  background: rgba(30, 58, 138, 0.08);
-  border-color: var(--rbt-light);
+  border-color: rgba(26, 43, 195, 0.5);
+  color: var(--local-primary);
 }
 
 .option-btn.selected {
-  background: var(--rbt);
+  background: linear-gradient(135deg, #1A2BC3 0%, #000298 100%);
   color: var(--white);
-  border-color: var(--rbt);
+  border-color: transparent;
+  box-shadow: 0 8px 24px -4px rgba(26, 43, 195, 0.4), 0 4px 12px -2px rgba(0, 2, 152, 0.3);
+}
+
+/* Step badge (Step X of Y pill) */
+.step-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--local-primary);
+  background: rgba(26, 43, 195, 0.1);
+}
+
+/* Progress bar segments */
+.progress-segment {
+  height: 6px;
+  flex: 1;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.progress-segment.filled {
+  background: linear-gradient(90deg, #1A2BC3 0%, #000298 100%);
+}
+
+/* Decorative orbs positioning */
+.app-wrap .orb-top-right,
+.app-wrap .orb-bottom-left {
+  position: absolute;
+}
+
+.app-wrap .orb-top-right {
+  top: -10%;
+  right: -10%;
+}
+
+.app-wrap .orb-bottom-left {
+  bottom: -5%;
+  left: -5%;
+}
+
+/* Temp-style text inputs */
+.input-glass {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 2px solid var(--glass-border);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  color: var(--local-text-primary);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-glass::placeholder {
+  color: var(--local-text-muted);
+}
+
+.input-glass:focus {
+  outline: none;
+  border-color: var(--local-primary);
+  box-shadow: 0 0 0 3px rgba(26, 43, 195, 0.15);
 }

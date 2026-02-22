@@ -8,7 +8,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 const WS_URL = 'ws://localhost:8000/ws/translate';
 const SAMPLE_RATE = 16000;
-const PCM_CHUNK_MS = 100;
 
 export type PolyglotContext = {
   destination?: string;
