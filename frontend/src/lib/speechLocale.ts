@@ -6,6 +6,7 @@ export function targetLanguageToSpeechLocale(targetLanguage: string): string {
   const lower = targetLanguage.toLowerCase()
   if (lower.includes('french') || lower === 'fr') return 'fr-FR'
   if (lower.includes('arabic') || lower === 'ar') return 'ar-MA'
+  if (lower.includes('bulgarian') || lower === 'bg') return 'bg-BG'
   if (lower.includes('english') || lower === 'en') return 'en-GB'
   return 'en-US'
 }

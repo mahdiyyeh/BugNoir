@@ -8,6 +8,7 @@ class LocationOption(str, Enum):
     PARIS = "paris"
     LONDON = "london"
     MOROCCO = "morocco"
+    BULGARIA = "bulgaria"
 
 
 # Onboarding question 1: personality

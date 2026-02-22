@@ -347,6 +347,88 @@ body {
 .app-wrap.start-page .app-container {
   z-index: 1;
 }
+
+/* —— Stylized flags on sticks (start page background, in viewport margins) —— */
+.start-page-flag-clusters-viewport {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.start-page-wrapper {
+  position: relative;
+  width: 100%;
+}
+.flag-cluster {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 120px;
+  height: 100%;
+}
+/* Center each cluster in the left/right gap (gap center ≈ 25% and 75% of viewport) */
+.flag-cluster-left {
+  left: max(2%, calc(25% - 60px));
+}
+.flag-cluster-right {
+  right: max(2%, calc(25% - 60px));
+  align-items: flex-end;
+}
+.stylized-flag {
+  position: absolute;
+  width: 112px;
+  height: 160px;
+  transform-origin: 0 0;
+}
+/* Left cluster: spread vertically so no overlap (percent of viewport height) */
+.flag-pos-left-1 { top: 5%;   left: 0; }
+.flag-pos-left-2 { top: 30%; left: 8px; }
+.flag-pos-left-3 { top: 55%; left: 4px; }
+.flag-pos-left-4 { top: 80%; left: 6px; }
+/* Right cluster: position from cluster’s right so full flag stays in view */
+.flag-pos-right-1 { top: 5%;   right: 0; left: auto; }
+.flag-pos-right-2 { top: 30%; right: 0; left: auto; }
+.flag-pos-right-3 { top: 55%; right: 0; left: auto; }
+.flag-pos-right-4 { top: 80%; right: 0; left: auto; }
+/* Sway ±10deg + subtle bob; different durations + staggered delays */
+@keyframes flag-sway-bob-1 {
+  0%, 100% { transform: rotate(-10deg) translateY(0); }
+  50% { transform: rotate(10deg) translateY(1.5px); }
+}
+@keyframes flag-sway-bob-2 {
+  0%, 100% { transform: rotate(-10deg) translateY(0); }
+  50% { transform: rotate(10deg) translateY(1px); }
+}
+@keyframes flag-sway-bob-3 {
+  0%, 100% { transform: rotate(-10deg) translateY(0); }
+  50% { transform: rotate(10deg) translateY(2px); }
+}
+@keyframes flag-sway-bob-4 {
+  0%, 100% { transform: rotate(-10deg) translateY(0); }
+  50% { transform: rotate(10deg) translateY(1px); }
+}
+.flag-sway-1 { animation: flag-sway-bob-1 3.2s ease-in-out infinite; }
+.flag-sway-2 { animation: flag-sway-bob-2 3.8s ease-in-out infinite 0.4s; }
+.flag-sway-3 { animation: flag-sway-bob-3 2.8s ease-in-out infinite 0.9s; }
+.flag-sway-4 { animation: flag-sway-bob-4 4.2s ease-in-out infinite 0.2s; }
+.flag-right-wrap {
+  position: absolute;
+  width: 112px;
+  height: 160px;
+  transform: scaleX(-1);
+  transform-origin: 100% 0;
+}
+.flag-right-wrap .stylized-flag {
+  position: relative;
+  left: 0;
+  top: 0;
+}
+
+.start-page-wrapper > .start-page-penguin-wrap,
+.start-page-wrapper > .glass {
+  position: relative;
+  z-index: 1;
+}
 .start-page-penguin-wrap {
   display: flex;
   justify-content: center;
@@ -555,6 +637,13 @@ body {
   .penguin-translator .penguin-speech-2,
   .penguin-translator .penguin-speech-3,
   .penguin-translator .penguin-speech-4 { opacity: 0; }
+  .stylized-flag.flag-sway-1,
+  .stylized-flag.flag-sway-2,
+  .stylized-flag.flag-sway-3,
+  .stylized-flag.flag-sway-4 {
+    animation: none !important;
+    transform: rotate(0deg) translateY(0);
+  }
 }
 
 /* —— Responsive —— */

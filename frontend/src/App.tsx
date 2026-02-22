@@ -12,6 +12,7 @@ import {
 import { VoiceInput, VoiceInputControlled, useVoiceInput } from './components/VoiceInput'
 import { GradientOrb } from './components/GradientOrb'
 import { PenguinTranslator } from './components/PenguinTranslator'
+import { FlagCluster } from './components/FlagCluster'
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis'
 import { targetLanguageToSpeechLocale } from './lib/speechLocale'
 
@@ -37,6 +38,7 @@ const LOCATIONS = [
   { id: 'paris' as const, label: 'Paris' },
   { id: 'london' as const, label: 'London' },
   { id: 'morocco' as const, label: 'Morocco' },
+  { id: 'bulgaria' as const, label: 'Bulgaria' },
 ]
 
 export default function App() {
@@ -69,7 +71,7 @@ export default function App() {
   const processingRef = useRef(false)
 
   const selectLocation = useCallback(
-    (loc: 'paris' | 'london' | 'morocco') => {
+    (loc: 'paris' | 'london' | 'morocco' | 'bulgaria') => {
       setAnswers((a) => ({ ...a, location: loc }))
       setStep('intro')
     },
@@ -189,6 +191,12 @@ export default function App() {
     <div className={`app-wrap${step === 'location' ? ' start-page' : ''}`} style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
       <GradientOrb color="blue" size="large" className="orb-top-right" />
       <GradientOrb color="purple" size="medium" className="orb-bottom-left" />
+      {step === 'location' && (
+        <div className="start-page-flag-clusters-viewport" aria-hidden>
+          <FlagCluster side="left" />
+          <FlagCluster side="right" />
+        </div>
+      )}
 
       <div className="app-container">
         {step === 'ended' && (
@@ -207,10 +215,11 @@ export default function App() {
         {/* ----- LOCATION (start / landing) ----- */}
         {step === 'location' && (
           <>
-            <div className="start-page-penguin-wrap">
-              <PenguinTranslator />
-            </div>
-            <div className="glass card-padding">
+            <div className="start-page-wrapper">
+              <div className="start-page-penguin-wrap">
+                <PenguinTranslator />
+              </div>
+              <div className="glass card-padding">
               <div className="start-hero">
                 <div className="logo-icon-wrap" aria-hidden>
                   <img src="/logo-icon.svg" alt="" />
@@ -240,10 +249,12 @@ export default function App() {
                 if (t.includes('paris')) selectLocation('paris')
                 else if (t.includes('london')) selectLocation('london')
                 else if (t.includes('morocco')) selectLocation('morocco')
+                else if (t.includes('bulgaria')) selectLocation('bulgaria')
               }}
-              placeholder="Or say: Paris, London, Morocco"
+              placeholder="Or say: Paris, London, Morocco, Bulgaria"
             />
-          </div>
+              </div>
+            </div>
           </>
         )}
 
@@ -311,7 +322,7 @@ export default function App() {
         {step === 'pronunciation' && (
           <div className="glass card-padding">
             <h2 style={{ color: 'var(--local-text-primary)', marginBottom: 16, textAlign: 'center', fontSize: '1.125rem', fontWeight: 600 }}>
-              How easy do you find it to pronounce {answers.location === 'morocco' ? 'Arabic' : 'French'} words?
+              How easy do you find it to pronounce {answers.location === 'morocco' ? 'Arabic' : answers.location === 'bulgaria' ? 'Bulgarian' : 'French'} words?
             </h2>
             <div className="options-grid" style={{ marginBottom: 24 }}>
               {PRONUNCIATION_OPTIONS.map((opt) => (
@@ -444,7 +455,7 @@ export default function App() {
             <VoiceInput
               onResult={handleOtherPersonInput}
               placeholder="Say or type what the other person said..."
-              lang={targetLanguage ? targetLanguageToSpeechLocale(targetLanguage) : undefined}
+              lang={speechLocale || undefined}
             />
             <input
               type="text"
@@ -489,6 +500,7 @@ export default function App() {
                 <VoiceInputControlled
                   listening={conversationVoice.listening}
                   transcript={conversationVoice.transcript}
+                  error={conversationVoice.error}
                   startListening={conversationVoice.startListening}
                   stopListening={conversationVoice.stopListening}
                   resetTranscript={conversationVoice.resetTranscript}

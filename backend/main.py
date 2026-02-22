@@ -40,11 +40,13 @@ def _location_to_languages(loc: LocationOption) -> tuple[str, str]:
         return "en", "fr"  # User is English-speaking, practising French in London (French community context)
     if loc == LocationOption.MOROCCO:
         return "en", "ar"
+    if loc == LocationOption.BULGARIA:
+        return "en", "bg"
     return "en", "fr"
 
 
 def _location_to_region(loc: LocationOption) -> str:
-    return {"paris": "Paris", "london": "London", "morocco": "Morocco"}.get(
+    return {"paris": "Paris", "london": "London", "morocco": "Morocco", "bulgaria": "Bulgaria"}.get(
         loc.value, "Paris"
     )
 
@@ -76,7 +78,7 @@ def submit_onboarding(answers: OnboardingAnswers) -> dict:
     """
     native, target = _location_to_languages(answers.location)
     region = _location_to_region(answers.location)
-    target_lang_name = {"fr": "French", "ar": "Moroccan Darija (Arabic)"}.get(target, "French")
+    target_lang_name = {"fr": "French", "ar": "Moroccan Darija (Arabic)", "bg": "Bulgarian"}.get(target, "French")
     user_context = UserContext(
         onboarding=answers,
         native_language=native,

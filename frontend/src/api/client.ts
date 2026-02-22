@@ -1,7 +1,7 @@
 const API_BASE = '/api';
 
 export type OnboardingAnswers = {
-  location: 'paris' | 'london' | 'morocco';
+  location: 'paris' | 'london' | 'morocco' | 'bulgaria';
   personality: string;
   occasion: string;
   pronunciation_difficulty: string;

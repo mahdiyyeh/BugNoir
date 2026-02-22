@@ -12,31 +12,66 @@ export function useVoiceInput(options?: VoiceInputOptions) {
   const lang = options?.lang ?? 'en-US'
   const [listening, setListening] = useState(false)
   const [transcript, setTranscript] = useState('')
+  const [error, setError] = useState<string | null>(null)
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
+  const hasRetriedWithEnUsRef = useRef(false)
 
   const startListening = useCallback(() => {
+    setError(null)
+    hasRetriedWithEnUsRef.current = false
     const SR = getSpeechRecognition()
     if (!SR) {
-      console.warn('Speech Recognition not supported')
+      setError('Voice input is not supported in this browser. Try Chrome or Edge, or use the text field below.')
       return
     }
     if (recognitionRef.current) {
       try { recognitionRef.current.stop() } catch { /* ignore */ }
+      recognitionRef.current = null
     }
-    const recognition = new (SR as SpeechRecognitionConstructor)()
-    recognition.continuous = true
-    recognition.interimResults = true
-    recognition.lang = lang
-    recognition.onresult = (e: SpeechRecognitionEvent) => {
-      const last = e.results.length - 1
-      const text = e.results[last][0].transcript
-      setTranscript(text)
+
+    const tryStart = (effectiveLang: string) => {
+      const recognition = new (SR as SpeechRecognitionConstructor)()
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.lang = effectiveLang
+      recognition.onresult = (e: SpeechRecognitionEvent) => {
+        const last = e.results.length - 1
+        const text = e.results[last][0].transcript
+        setTranscript(text)
+      }
+      recognition.onerror = (e: SpeechRecognitionErrorEvent) => {
+        const code = e.error ?? 'unknown'
+        if (code === 'not-allowed') {
+          setError('Microphone access was denied. Allow mic in your browser settings and try again.')
+        } else if (code === 'no-speech') {
+          setError('No speech heard. Tap Voice again and speak clearly.')
+        } else if (code !== 'aborted') {
+          if (effectiveLang !== 'en-US' && !hasRetriedWithEnUsRef.current) {
+            hasRetriedWithEnUsRef.current = true
+            if (recognitionRef.current) {
+              try { recognitionRef.current.stop() } catch { /* ignore */ }
+              recognitionRef.current = null
+            }
+            tryStart('en-US')
+            return
+          }
+          setError('Voice input failed. Use the text field below or try again.')
+        }
+        setListening(false)
+      }
+      recognition.onend = () => setListening(false)
+      recognitionRef.current = recognition
+      try {
+        recognition.start()
+        setListening(true)
+      } catch {
+        setError('Could not start microphone. Check permissions or use the text field below.')
+        setListening(false)
+        recognitionRef.current = null
+      }
     }
-    recognition.onerror = () => setListening(false)
-    recognition.onend = () => setListening(false)
-    recognitionRef.current = recognition
-    recognition.start()
-    setListening(true)
+
+    tryStart(lang)
   }, [lang])
 
   const stopListening = useCallback(() => {
@@ -55,7 +90,7 @@ export function useVoiceInput(options?: VoiceInputOptions) {
     }
   }, [])
 
-  return { listening, transcript, startListening, stopListening, resetTranscript }
+  return { listening, transcript, error, startListening, stopListening, resetTranscript }
 }
 
 type Props = {
@@ -69,6 +104,7 @@ type Props = {
 export type VoiceInputControlledProps = {
   listening: boolean
   transcript: string
+  error?: string | null
   startListening: () => void
   stopListening: () => void
   resetTranscript: () => void
@@ -79,6 +115,7 @@ export type VoiceInputControlledProps = {
 export function VoiceInputControlled({
   listening,
   transcript,
+  error: errorProp,
   startListening,
   stopListening,
   resetTranscript,
@@ -114,12 +151,17 @@ export function VoiceInputControlled({
           </button>
         )}
       </div>
+      {errorProp && (
+        <p style={{ marginTop: 8, color: 'var(--red)', fontSize: '0.875rem' }} role="alert">
+          {errorProp}
+        </p>
+      )}
       {transcript && (
         <p style={{ marginTop: 8, color: 'var(--black)', fontSize: '0.95rem' }}>
           Heard: {transcript}
         </p>
       )}
-      {placeholder && !listening && (
+      {placeholder && !listening && !errorProp && (
         <p style={{ marginTop: 6, color: 'var(--rbt)', opacity: 0.8, fontSize: '0.9rem' }}>
           {placeholder}
         </p>
@@ -129,7 +171,7 @@ export function VoiceInputControlled({
 }
 
 export function VoiceInput({ onResult, placeholder = 'Say something...', lang }: Props) {
-  const { listening, transcript, startListening, stopListening, resetTranscript } = useVoiceInput(lang ? { lang } : undefined)
+  const { listening, transcript, error, startListening, stopListening, resetTranscript } = useVoiceInput(lang ? { lang } : undefined)
   const submittedRef = useRef(false)
 
   const handleSubmit = useCallback(() => {
@@ -162,12 +204,17 @@ export function VoiceInput({ onResult, placeholder = 'Say something...', lang }:
           </button>
         )}
       </div>
+      {error && (
+        <p style={{ marginTop: 8, color: 'var(--red)', fontSize: '0.875rem' }} role="alert">
+          {error}
+        </p>
+      )}
       {transcript && (
         <p style={{ marginTop: 8, color: 'var(--black)', fontSize: '0.95rem' }}>
           Heard: {transcript}
         </p>
       )}
-      {placeholder && !listening && (
+      {placeholder && !listening && !error && (
         <p style={{ marginTop: 6, color: 'var(--rbt)', opacity: 0.8, fontSize: '0.9rem' }}>
           {placeholder}
         </p>
