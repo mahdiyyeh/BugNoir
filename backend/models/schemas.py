@@ -1,6 +1,5 @@
 """Pydantic models for Local Polyglot Friend API."""
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -9,12 +8,6 @@ class LocationOption(str, Enum):
     PARIS = "paris"
     LONDON = "london"
     MOROCCO = "morocco"
-
-
-class LanguagePair(str, Enum):
-    FR_EN = "fr_en"   # Paris
-    EN_FR = "en_fr"   # London (English primary)
-    AR_EN = "ar_en"   # Morocco (Arabic/French/English)
 
 
 # Onboarding question 1: personality
@@ -44,15 +37,6 @@ class UserContext(BaseModel):
     native_language: str = "en"
     target_language: str = "fr"
     target_region: str = "Paris"
-
-
-class ConversationTurn(BaseModel):
-    """One turn: what the other person said (in local language) and optional user reply."""
-    other_person_said_local: str = Field(..., description="What the other person said in local language")
-    other_person_said_english: Optional[str] = Field(None, description="Translation to English")
-    suggested_response_english: Optional[str] = None
-    suggested_response_local: Optional[str] = None
-    phonetic_local: Optional[str] = Field(None, description="Phonetic spelling for user to pronounce")
 
 
 class SuggestedResponse(BaseModel):

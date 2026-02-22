@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/speech.d.ts","./src/api/client.ts","./src/components/voiceinput.tsx","./src/hooks/usespeechsynthesis.ts"],"version":"5.6.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/speech.d.ts","./src/api/client.ts","./src/components/voiceinput.test.tsx","./src/components/voiceinput.tsx","./src/hooks/usespeechsynthesis.ts","./src/lib/speechlocale.test.ts","./src/lib/speechlocale.ts"],"version":"5.6.3"}

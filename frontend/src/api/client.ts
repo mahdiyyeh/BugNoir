@@ -80,3 +80,21 @@ export async function confirmUserSaid(
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+
+export type DashboardLogEntry = {
+  complexity_score: number;
+  interaction_type: string;
+  estimated_value_eur: number;
+  timestamp: string;
+};
+
+export async function getDashboard(): Promise<{
+  total_interactions: number;
+  total_value_eur: number;
+  average_complexity: number;
+  log: DashboardLogEntry[];
+}> {
+  const res = await fetch(`${API_BASE}/dashboard`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}

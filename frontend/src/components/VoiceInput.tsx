@@ -65,6 +65,69 @@ type Props = {
   lang?: string
 }
 
+/** Controlled variant: parent provides state and callbacks from useVoiceInput (fixes dual-instance conflict in conversation step). */
+export type VoiceInputControlledProps = {
+  listening: boolean
+  transcript: string
+  startListening: () => void
+  stopListening: () => void
+  resetTranscript: () => void
+  onResult: (text: string) => void
+  placeholder?: string
+}
+
+export function VoiceInputControlled({
+  listening,
+  transcript,
+  startListening,
+  stopListening,
+  resetTranscript,
+  onResult,
+  placeholder = 'Say something...',
+}: VoiceInputControlledProps) {
+  const submittedRef = useRef(false)
+  const handleSubmit = useCallback(() => {
+    const t = (transcript || '').trim()
+    if (t && !submittedRef.current) {
+      submittedRef.current = true
+      onResult(t)
+      resetTranscript()
+      stopListening()
+    }
+  }, [transcript, onResult, resetTranscript, stopListening])
+  useEffect(() => {
+    submittedRef.current = false
+  }, [listening])
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button
+          type="button"
+          className={listening ? 'option-btn selected' : 'option-btn'}
+          onClick={() => (listening ? stopListening() : startListening())}
+        >
+          {listening ? '🛑 Stop' : '🎤 Voice'}
+        </button>
+        {listening && (
+          <button type="button" className="btn-primary" onClick={handleSubmit}>
+            Submit
+          </button>
+        )}
+      </div>
+      {transcript && (
+        <p style={{ marginTop: 8, color: 'var(--black)', fontSize: '0.95rem' }}>
+          Heard: {transcript}
+        </p>
+      )}
+      {placeholder && !listening && (
+        <p style={{ marginTop: 6, color: 'var(--rbt)', opacity: 0.8, fontSize: '0.9rem' }}>
+          {placeholder}
+        </p>
+      )}
+    </div>
+  )
+}
+
 export function VoiceInput({ onResult, placeholder = 'Say something...', lang }: Props) {
   const { listening, transcript, startListening, stopListening, resetTranscript } = useVoiceInput(lang ? { lang } : undefined)
   const submittedRef = useRef(false)

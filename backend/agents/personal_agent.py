@@ -14,13 +14,12 @@ class PersonalAgent:
     @staticmethod
     def get_suggested_response(
         user_context: UserContext,
-        other_person_said_english: str,
         other_person_said_local: str,
         conversation_history_english: Optional[list[str]] = None,
-    ) -> SuggestedResponse:
+    ) -> tuple[str, SuggestedResponse]:
+        """Returns (english_translation, suggested_response) from ONE Gemini call."""
         return gemini_suggest(
             user_context=user_context,
-            other_person_said_english=other_person_said_english,
             other_person_said_local=other_person_said_local,
             conversation_history_english=conversation_history_english,
         )

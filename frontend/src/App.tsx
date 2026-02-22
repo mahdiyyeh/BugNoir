@@ -1,12 +1,13 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import type { OnboardingAnswers, SuggestedResponse } from './api/client'
 import {
   submitOnboarding,
   markArrived,
   processTurn,
   confirmUserSaid,
+  getDashboard,
 } from './api/client'
-import { VoiceInput, useVoiceInput } from './components/VoiceInput'
+import { VoiceInput, VoiceInputControlled, useVoiceInput } from './components/VoiceInput'
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis'
 import { targetLanguageToSpeechLocale } from './lib/speechLocale'
 
@@ -39,6 +40,7 @@ export default function App() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [region, setRegion] = useState<string>('')
   const [targetLanguage, setTargetLanguage] = useState<string>('')
+  const [speechLocale, setSpeechLocale] = useState<string>('')
   const [answers, setAnswers] = useState<Partial<OnboardingAnswers>>({})
   const [error, setError] = useState<string | null>(null)
 
@@ -47,8 +49,17 @@ export default function App() {
   const [suggested, setSuggested] = useState<SuggestedResponse | null>(null)
   const [waitingForUserToSpeak, setWaitingForUserToSpeak] = useState(false)
 
+  // Dashboard (value tracking)
+  const [dashboard, setDashboard] = useState<{
+    total_interactions: number;
+    total_value_eur: number;
+    average_complexity: number;
+    log: Array<{ complexity_score: number; interaction_type: string; estimated_value_eur: number; timestamp: string }>;
+  } | null>(null)
+
   const { speak, speaking } = useSpeechSynthesis()
-  const { resetTranscript } = useVoiceInput()
+  const conversationVoice = useVoiceInput(speechLocale ? { lang: speechLocale } : undefined)
+  const processingRef = useRef(false)
 
   const selectLocation = useCallback(
     (loc: 'paris' | 'london' | 'morocco') => {
@@ -78,6 +89,7 @@ export default function App() {
       setSessionId(res.session_id)
       setRegion(res.target_region)
       setTargetLanguage(res.target_language)
+      setSpeechLocale(targetLanguageToSpeechLocale(res.target_language))
       setStep('thanks')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save.')
@@ -100,19 +112,23 @@ export default function App() {
   const handleOtherPersonInput = useCallback(
     async (text: string) => {
       if (!sessionId || !text.trim()) return
+      if (processingRef.current) return
+      processingRef.current = true
       setError(null)
       try {
         const res = await processTurn(sessionId, text.trim())
         setOtherSaidEnglish(res.other_person_said_english)
         setSuggested(res.suggested_response)
         setWaitingForUserToSpeak(true)
-        speak(res.other_person_said_english)
-        setTimeout(() => speak(res.suggested_response.english), 800)
+        speak(res.other_person_said_english, 'en-US')
+        setTimeout(() => speak(res.suggested_response.local, speechLocale || 'en-US'), 800)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Processing failed.')
+      } finally {
+        processingRef.current = false
       }
     },
-    [sessionId, speak]
+    [sessionId, speak, speechLocale]
   )
 
   const handleUserSaidConfirm = useCallback(
@@ -126,16 +142,16 @@ export default function App() {
           setOtherSaidEnglish('')
           setSuggested(null)
           setWaitingForUserToSpeak(false)
-          resetTranscript()
+          conversationVoice.resetTranscript()
         }
       } catch {
         setOtherSaidEnglish('')
         setSuggested(null)
         setWaitingForUserToSpeak(false)
-        resetTranscript()
+        conversationVoice.resetTranscript()
       }
     },
-    [sessionId, suggested, resetTranscript]
+    [sessionId, suggested, conversationVoice]
   )
 
   const endConvo = useCallback(() => setStep('ended'), [])
@@ -152,9 +168,11 @@ export default function App() {
     setSessionId(null)
     setRegion('')
     setTargetLanguage('')
+    setSpeechLocale('')
     setAnswers({})
     setSuggested(null)
     setOtherSaidEnglish('')
+    setDashboard(null)
   }, [])
 
   return (
@@ -259,7 +277,7 @@ export default function App() {
       {step === 'pronunciation' && (
         <div className="glass" style={{ padding: 32, marginTop: 40 }}>
           <h2 style={{ color: 'var(--rbt)', marginBottom: 16 }}>
-            How easy do you find it to pronounce French words?
+            How easy do you find it to pronounce {answers.location === 'morocco' ? 'Arabic' : 'French'} words?
           </h2>
           <div className="options-grid" style={{ marginBottom: 24 }}>
             {PRONUNCIATION_OPTIONS.map((opt) => (
@@ -429,24 +447,31 @@ export default function App() {
             <div className="glass" style={{ marginTop: 24, padding: 20 }}>
               <p style={{ color: 'var(--rbt)', marginBottom: 8 }}>Say this in local language:</p>
               <p className="text-rbt" style={{ marginBottom: 8 }}>{suggested.phonetic}</p>
-              <p className="text-french" style={{ marginBottom: 8 }}>{suggested.local}</p>
+              <p className="text-french" style={{ marginBottom: 8 }}>
+                {suggested.local}
+                <button type="button" className="option-btn" style={{ marginLeft: 8, padding: '4px 10px' }} onClick={() => speak(suggested!.local, speechLocale || 'en-US')}>🔊 Hear it</button>
+              </p>
               <p className="text-english">{suggested.english}</p>
               <p style={{ marginTop: 16, color: 'var(--rbt)', fontSize: '0.95rem' }}>
                 Repeat the phrase, or say &quot;next&quot; to get a new suggestion.
               </p>
-              <VoiceInput
+              <VoiceInputControlled
+                listening={conversationVoice.listening}
+                transcript={conversationVoice.transcript}
+                startListening={conversationVoice.startListening}
+                stopListening={conversationVoice.stopListening}
+                resetTranscript={conversationVoice.resetTranscript}
                 onResult={(text) => {
                   if (text.toLowerCase().includes('next')) {
                     setWaitingForUserToSpeak(false)
                     setSuggested(null)
                     setOtherSaidEnglish('')
-                    resetTranscript()
+                    conversationVoice.resetTranscript()
                     return
                   }
                   handleUserSaidConfirm(text)
                 }}
                 placeholder="Speak your response..."
-                lang={targetLanguage ? targetLanguageToSpeechLocale(targetLanguage) : undefined}
               />
             </div>
           )}
@@ -464,6 +489,23 @@ export default function App() {
           <button type="button" className="btn-primary btn-chamfer" style={{ display: 'block', marginBottom: 16, width: '100%' }} onClick={startNewConvo}>
             Start Convo
           </button>
+          <button type="button" className="option-btn" style={{ width: '100%', marginBottom: 16 }} onClick={async () => {
+            try {
+              const data = await getDashboard()
+              setDashboard(data)
+            } catch {
+              setDashboard(null)
+            }
+          }}>
+            Dashboard
+          </button>
+          {dashboard && (
+            <div className="glass" style={{ padding: 20, marginTop: 16 }}>
+              <p style={{ color: 'var(--rbt)', marginBottom: 8 }}>Total Interactions: <span style={{ color: 'var(--rbt)' }}>{dashboard.total_interactions}</span></p>
+              <p style={{ color: 'var(--rbt)', marginBottom: 8 }}>Total Value: <span style={{ color: 'var(--red)' }}>€{dashboard.total_value_eur.toFixed(2)}</span></p>
+              <p style={{ color: 'var(--rbt)' }}>Average Complexity Score: <span style={{ color: 'var(--rbt)' }}>{dashboard.average_complexity}</span></p>
+            </div>
+          )}
           <button type="button" className="option-btn" style={{ width: '100%' }} onClick={startNewUser}>
             New User
           </button>

@@ -3,6 +3,7 @@ Local: Your Mutual Polyglot Friend — FastAPI backend.
 Run from repo root: uvicorn backend.main:app --reload
 """
 import os
+import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -15,10 +16,12 @@ from backend.models.schemas import (
     OnboardingAnswers,
     UserContext,
     LocationOption,
-    SuggestedResponse,
 )
 from backend.agents.communicator import CommunicatorAgent
 from backend.services.gemini_client import detect_end_phrase
+from backend.services.value_tracker import ValueTracker
+
+value_tracker = ValueTracker()
 
 load_dotenv()
 
@@ -30,7 +33,7 @@ def _location_to_languages(loc: LocationOption) -> tuple[str, str]:
     if loc == LocationOption.PARIS:
         return "en", "fr"
     if loc == LocationOption.LONDON:
-        return "en", "fr"  # still French for visitors
+        return "en", "fr"  # User is English-speaking, practising French in London (French community context)
     if loc == LocationOption.MOROCCO:
         return "en", "ar"
     return "en", "fr"
@@ -69,19 +72,19 @@ def submit_onboarding(answers: OnboardingAnswers) -> dict:
     """
     native, target = _location_to_languages(answers.location)
     region = _location_to_region(answers.location)
-    target_lang_name = {"fr": "French", "ar": "Arabic"}.get(target, "French")
+    target_lang_name = {"fr": "French", "ar": "Moroccan Darija (Arabic)"}.get(target, "French")
     user_context = UserContext(
         onboarding=answers,
         native_language=native,
         target_language=target_lang_name,
         target_region=region,
     )
-    import uuid
     session_id = str(uuid.uuid4())
     sessions[session_id] = {
         "user_context": user_context.model_dump(),
         "conversation_history_english": [],
         "arrived": False,
+        "last_other_said": "",
     }
     return {
         "session_id": session_id,
@@ -133,9 +136,12 @@ def process_turn(body: ProcessTurnBody) -> dict:
     english_translation, suggested = comm.process_other_person_speech(
         other_person_said_local, conversation_history_english=history
     )
+    data["last_other_said"] = english_translation
+    value_event = value_tracker.score_interaction(ctx, other_person_said_local, suggested)
     return {
         "other_person_said_english": english_translation,
         "suggested_response": suggested.model_dump(),
+        "value_event": value_event,
     }
 
 
@@ -151,9 +157,8 @@ def confirm_user_said(body: ConfirmBody) -> dict:
         raise HTTPException(status_code=404, detail="Session not found")
     data = sessions[session_id]
     history = data.get("conversation_history_english") or []
-    # Append last exchange: other said X, user said Y (we store English side)
-    # For simplicity we store the suggested English as what user "said"
-    history.append(user_said)
+    last_other = data.get("last_other_said", "")
+    history.append(f"Other: {last_other} | You: {user_said}")
     data["conversation_history_english"] = history
     ended = detect_end_phrase(user_said, data["user_context"].get("target_language", "French"))
     return {"conversation_ended": ended}
@@ -164,6 +169,11 @@ def get_session(session_id: str) -> dict:
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
     return sessions[session_id]
+
+
+@app.get("/api/dashboard")
+def get_dashboard() -> dict:
+    return value_tracker.get_dashboard()
 
 
 @app.get("/api/health")

@@ -1,14 +1,29 @@
 """Gemini API client for translation, suggestions, and agent reasoning.
 Uses the google-genai SDK (Gemini Developer API)."""
+import json
 import os
 from typing import Optional
 
 from google import genai
+from google.genai import types
+
+try:
+    from google.genai.errors import ClientError
+except ImportError:
+    ClientError = Exception  # noqa: A001
 
 from backend.models.schemas import UserContext, SuggestedResponse
 
-# Model IDs to try (Gemini Developer API / aistudio.google.com)
-GEMINI_MODELS = ("gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash")
+# Model IDs to try (Gemini Developer API). Order: prefer newer, then common fallbacks.
+GEMINI_MODELS = (
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-pro",
+    "gemini-1.5-pro-latest",
+    "gemini-pro",
+)
 
 
 def _get_api_key() -> str:
@@ -34,9 +49,10 @@ def _generate(prompt: str) -> str:
             if response.text is None:
                 return ""
             return response.text.strip()
-        except Exception as e:
+        except (ClientError, Exception) as e:
             last_error = e
-            if "not found" in str(e).lower() or "404" in str(e):
+            err_str = str(e).lower()
+            if "not found" in err_str or "404" in err_str or "not_found" in err_str:
                 continue
             raise
     raise last_error or RuntimeError("No model available")
@@ -66,20 +82,25 @@ Phrase: {local_text}"""
 
 def suggest_response(
     user_context: UserContext,
-    other_person_said_english: str,
     other_person_said_local: str,
     conversation_history_english: Optional[list[str]] = None,
-) -> SuggestedResponse:
+) -> tuple[str, SuggestedResponse]:
     """
-    Personal Agent + Local Agent logic: suggest a response in English, then we translate
-    to local and add phonetic. Uses user context (personality, occasion, slang, etc.).
+    ONE Gemini call: returns (english_translation, suggested_response).
+    JSON fields: english_translation, suggested_english, suggested_local, suggested_phonetic.
     """
     ctx = user_context.onboarding
     history = ""
     if conversation_history_english:
         history = "Recent exchange (English): " + " | ".join(conversation_history_english[-6:])
 
-    prompt = f"""You are a polyglot coach helping a traveler have a natural conversation in {user_context.target_language} ({user_context.target_region}).
+    target_lang = user_context.target_language
+    region = user_context.target_region
+    morocco_instruction = ""
+    if region == "Morocco" or "Darija" in target_lang:
+        morocco_instruction = " The user is travelling to Morocco. Use Moroccan Darija Arabic, not Modern Standard Arabic. Use common Moroccan phrases."
+
+    prompt = f"""You are a polyglot coach helping a traveler have a natural conversation in {target_lang} ({region}).{morocco_instruction}
 
 User profile:
 - How they want to come across: {ctx.personality}
@@ -90,16 +111,49 @@ User profile:
 - Hobbies: {ctx.hobbies}
 
 The other person just said (in local language): {other_person_said_local}
-Translation: {other_person_said_english}
 {history}
 
-Suggest a short, natural reply in ENGLISH that the user could say next. Keep it one or two short sentences, matching their personality and occasion. Reply with ONLY the English suggested phrase, nothing else."""
+Do ALL of the following in one response as JSON only (no markdown, no explanation):
+1. Provide "english_translation": the English translation of what the other person said.
+2. Suggest a short, natural reply the user could say next, in English ("suggested_english"), then in the target language ("suggested_local"), matching their personality and occasion (one or two short sentences).
+3. Provide "suggested_phonetic": a simple phonetic spelling in Latin script for "suggested_local" so an English speaker can pronounce it (e.g. "oo" for u, "ay" for é). One line only.
 
-    english = _generate(prompt) or "I'm sorry, I didn't catch that."
-    english = english.strip('"\n ')
-    local = translate_to_local(english, user_context.target_language.capitalize())
-    phonetic = get_phonetic_spelling(local, user_context.target_language.capitalize())
-    return SuggestedResponse(english=english, local=local, phonetic=phonetic)
+Return ONLY a valid JSON object with exactly these keys: english_translation, suggested_english, suggested_local, suggested_phonetic."""
+
+    client = _get_client()
+    last_error = None
+    for model in GEMINI_MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                ),
+            )
+            text = (response.text or "").strip()
+            if not text:
+                raise ValueError("Empty response")
+            # Remove markdown code block if present
+            if text.startswith("```"):
+                text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            data = json.loads(text)
+            english_translation = (data.get("english_translation") or "").strip() or other_person_said_local or ""
+            suggested_english = (data.get("suggested_english") or "I'm sorry, I didn't catch that.").strip().strip('"\n ')
+            suggested_local = (data.get("suggested_local") or suggested_english).strip()
+            suggested_phonetic = (data.get("suggested_phonetic") or suggested_local).strip()
+            return english_translation, SuggestedResponse(
+                english=suggested_english,
+                local=suggested_local,
+                phonetic=suggested_phonetic,
+            )
+        except (ClientError, Exception) as e:
+            last_error = e
+            err_str = str(e).lower()
+            if "not found" in err_str or "404" in err_str or "not_found" in err_str:
+                continue
+            raise
+    raise last_error or RuntimeError("No model available")
 
 
 def detect_end_phrase(spoken: str, local_language: str = "French") -> bool:

@@ -27,8 +27,10 @@ GEMINI_API_KEY=your_gemini_api_key_here
 Run the API (from project root):
 
 ```bash
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000 --workers 1
 ```
+
+`--workers 1` is required for the in-memory session store. For production, replace the sessions dict with Redis.
 
 ### 2. Frontend (React)
 
